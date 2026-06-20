@@ -48,7 +48,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.06)",
   },
-  action: { flex: 1, alignItems: "center", gap: 3, minHeight: 42 },
+  action: { flex: 1, alignItems: "center", justifyContent: "center", gap: 3, minHeight: 42 },
   label: { color: "#64748B", fontSize: 11, fontWeight: "600" },
   labelActive: { color: "#2563EB" },
 });

@@ -9,6 +9,10 @@ export default function TabsLayout() {
       screenOptions={{
         header: () => <AppHeader />,
         tabBar: (props) => <AppTabActions {...props} />,
+        tabBarStyle: {
+          backgroundColor: "#0A0E1A",
+          borderTopColor: "rgba(255,255,255,0.06)",
+        },
       }}
     >
       <Tabs.Screen

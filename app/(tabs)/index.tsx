@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Pressable,
   RefreshControl,
@@ -25,8 +25,18 @@ type Dashboard = {
   id: string;
   openingBalance: number;
   currentBalance: number;
-  sentTransaction: unknown[];
-  receivedTransaction: unknown[];
+  sentTransaction: Transaction[];
+  receivedTransaction: Transaction[];
+};
+
+type Transaction = {
+  id: string;
+  sender_acc_no: string;
+  receiver_acc_no: string;
+  amount: number;
+  type: string;
+  transfer_date: string;
+  method: string;
 };
 
 const ACTIONS = [
@@ -40,6 +50,19 @@ function money(n: number) {
   const [int, dec] = Math.abs(n).toFixed(2).split(".");
   const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return `₹${grouped}.${dec}`;
+}
+
+function transactionDate(value: string) {
+  const date = new Date(value);
+  const today = new Date();
+  const sameDay = date.toDateString() === today.toDateString();
+  return sameDay
+    ? date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+    : date.toLocaleDateString([], {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
 }
 
 export default function Dashboard() {
@@ -77,10 +100,25 @@ export default function Dashboard() {
     load();
   }, [load]);
 
-  const last4 = data?.account_no;
-  const txCount =
-    (data?.sentTransaction.length ?? 0) +
-    (data?.receivedTransaction.length ?? 0);
+  const recentTransactions = useMemo(() => {
+    if (!data) return [];
+
+    // The API includes paired ledger entries for a single transfer. Group them
+    // by their transfer details so the dashboard shows one row per transfer.
+    const unique = new Map<string, Transaction>();
+    [...data.sentTransaction, ...data.receivedTransaction].forEach((tx) => {
+      const key = `${tx.sender_acc_no}-${tx.receiver_acc_no}-${tx.amount}-${tx.type}-${tx.transfer_date}`;
+      unique.set(key, tx);
+    });
+
+    return [...unique.values()]
+      .sort(
+        (a, b) =>
+          new Date(b.transfer_date).getTime() -
+          new Date(a.transfer_date).getTime(),
+      )
+      .slice(0, 5);
+  }, [data]);
 
   return (
     <ScrollView
@@ -169,11 +207,52 @@ export default function Dashboard() {
               </View>
             </View>
           ))
-        ) : txCount === 0 ? (
+        ) : recentTransactions.length === 0 ? (
           <Text style={styles.empty}>No transactions yet.</Text>
         ) : (
-          // TODO: render rows once we know the sent/received transaction shape.
-          <Text style={styles.empty}>{txCount} transactions</Text>
+          recentTransactions.map((tx) => {
+            const outgoing = tx.sender_acc_no === data?.account_no;
+            const counterparty = outgoing
+              ? tx.receiver_acc_no
+              : tx.sender_acc_no;
+            const suffix = counterparty.slice(-4);
+
+            return (
+              <View key={tx.id} style={styles.txRow}>
+                <View
+                  style={[
+                    styles.txAvatar,
+                    outgoing ? styles.txDebit : styles.txCredit,
+                  ]}
+                >
+                  <View style={styles.txIconCenter}>
+                    <Ionicons
+                      name={outgoing ? "arrow-up" : "arrow-down"}
+                      size={19}
+                      color={outgoing ? "#F87171" : "#34D399"}
+                    />
+                  </View>
+                </View>
+                <View style={styles.txInfo}>
+                  <Text style={styles.txTitle} numberOfLines={1}>
+                    {outgoing ? "Transfer to" : "Transfer from"} •••• {suffix}
+                  </Text>
+                  <Text style={styles.txMeta}>
+                    {tx.type} · {transactionDate(tx.transfer_date)}
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.txAmount,
+                    outgoing ? styles.txAmountDebit : styles.txAmountCredit,
+                  ]}
+                >
+                  {outgoing ? "−" : "+"}
+                  {money(tx.amount)}
+                </Text>
+              </View>
+            );
+          })
         )}
       </View>
     </ScrollView>
@@ -245,6 +324,19 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: "rgba(255,255,255,0.06)",
   },
+  txDebit: { backgroundColor: "rgba(248,113,113,0.12)" },
+  txCredit: { backgroundColor: "rgba(52,211,153,0.13)" },
+  txIconCenter: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  txInfo: { flex: 1, minWidth: 0 },
+  txTitle: { color: TEXT, fontSize: 14, fontWeight: "700" },
+  txMeta: { color: MUTED, fontSize: 11, marginTop: 3 },
+  txAmount: { fontSize: 14, fontWeight: "800" },
+  txAmountDebit: { color: "#F87171" },
+  txAmountCredit: { color: "#34D399" },
   empty: { color: MUTED, fontSize: 14, padding: 16, textAlign: "center" },
 
   skel: { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: 6 },
