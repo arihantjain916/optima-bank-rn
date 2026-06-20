@@ -1,6 +1,7 @@
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -228,7 +229,7 @@ export default function Analytics() {
             {recent.slice(0, 5).map((tx) => {
               const credit = tx.method.toUpperCase() === "CREDIT";
               return (
-                <View key={tx.id} style={styles.activityRow}>
+                <Pressable key={tx.id} style={styles.activityRow} onPress={() => router.push({ pathname: "/transaction/[id]", params: { id: tx.id, amount: String(tx.amount), type: tx.type, account: tx.acc_no, date: tx.date, method: tx.method } })}>
                   <View
                     style={[
                       styles.activityIcon,
@@ -256,7 +257,7 @@ export default function Analytics() {
                     {credit ? "+" : "−"}
                     {amount(Number(tx.amount || 0))}
                   </Text>
-                </View>
+                </Pressable>
               );
             })}
           </View>
