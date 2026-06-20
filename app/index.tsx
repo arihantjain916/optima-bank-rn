@@ -1,5 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import {
   FlatList,
@@ -83,7 +84,7 @@ export default function Onboarding() {
       {/* Header: brand + Skip */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Text style={styles.brand}>Optima Bank</Text>
-        <Pressable onPress={() => listRef.current?.scrollToEnd()} hitSlop={12}>
+        <Pressable onPress={() => router.push("/login")} hitSlop={12}>
           <Text style={styles.skip}>Skip</Text>
         </Pressable>
       </View>
@@ -111,18 +112,14 @@ export default function Onboarding() {
 
         <Pressable
           style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
-          onPress={() => {
-            // TODO: router.push("/(auth)/register") once the auth stack exists
-          }}
+          onPress={() => router.push("/register")}
         >
           <Text style={styles.primaryText}>Create Account</Text>
         </Pressable>
 
         <Pressable
           style={({ pressed }) => [styles.ghostBtn, pressed && styles.pressed]}
-          onPress={() => {
-            // TODO: router.push("/(auth)/login")
-          }}
+          onPress={() => router.push("/login")}
         >
           <Text style={styles.ghostText}>Login</Text>
         </Pressable>

@@ -1,36 +1,45 @@
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { CustomSplash } from "@/components/custom-splash";
+import { AuthProvider, useAuth } from "@/lib/auth";
 
 // Module scope: must run before any component renders, or auto-hide wins the race.
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const [ready, setReady] = useState(false);
+  // AuthProvider has to wrap the navigator so the guard below can read the token.
+  return (
+    <AuthProvider>
+      <RootNavigator />
+    </AuthProvider>
+  );
+}
+
+function RootNavigator() {
+  const { token, isLoading } = useAuth();
   const [splashGone, setSplashGone] = useState(false);
 
-  // Boot work: do async startup here (load fonts, read auth token from
-  // secure-store) and only flip `ready` once it's all done.
-  useEffect(() => {
-    async function prepare() {
-      try {
-        // TODO: await loadFonts(); await restoreSession();
-        await new Promise((r) => setTimeout(r, 1800)); // dev-only: lets the splash be seen
-      } finally {
-        setReady(true);
-      }
-    }
-    prepare();
-  }, []);
-
-  // Note: we no longer call SplashScreen.hideAsync() here — CustomSplash hides
-  // the native splash once its own view paints, then fades itself out.
   return (
     <>
-      <Stack screenOptions={{ headerShown: false }}  />
-      {!splashGone && <CustomSplash ready={ready} onDone={() => setSplashGone(true)} />}
+      <Stack screenOptions={{ headerShown: false }}>
+        {/* Logged OUT: onboarding + auth screens are reachable. */}
+        <Stack.Protected guard={!token}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)" />
+        </Stack.Protected>
+
+        {/* Logged IN: the tab app is reachable. */}
+        <Stack.Protected guard={!!token}>
+          <Stack.Screen name="(tabs)" />
+        </Stack.Protected>
+      </Stack>
+
+      {/* Splash stays up until the session is restored (isLoading -> false). */}
+      {!splashGone && (
+        <CustomSplash ready={!isLoading} onDone={() => setSplashGone(true)} />
+      )}
     </>
   );
 }
