@@ -26,13 +26,14 @@ const ACTIONS = [
   { icon: "add", label: "NEW CARD" },
 ] as const;
 
-// Seconds until the next daily CVV rotation. Backend will hand us the real
-// nextRotation timestamp later; for now we count down to local midnight.
-function secondsToMidnight() {
-  const now = new Date();
-  const next = new Date(now);
-  next.setHours(24, 0, 0, 0);
-  return Math.floor((next.getTime() - now.getTime()) / 1000);
+const CVV_ROTATION_SECONDS = 5 * 60;
+
+// Align the countdown with five-minute clock boundaries (for example, 10:05,
+// 10:10, 10:15), rather than starting a different window on each device.
+function secondsToNextCvvRotation() {
+  const periodMs = CVV_ROTATION_SECONDS * 1000;
+  const elapsedInPeriod = Date.now() % periodMs;
+  return Math.ceil((periodMs - elapsedInPeriod) / 1000);
 }
 
 function formatHMS(total: number) {
@@ -88,7 +89,7 @@ export default function Card() {
   const insets = useSafeAreaInsets();
   const [flipped, setFlipped] = useState(false);
   const flip = useRef(new Animated.Value(0)).current;
-  const [remaining, setRemaining] = useState(secondsToMidnight());
+  const [remaining, setRemaining] = useState(secondsToNextCvvRotation());
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,7 +132,10 @@ export default function Card() {
   // Live rotation countdown — ticks every second, resets at zero.
   useEffect(() => {
     const id = setInterval(
-      () => setRemaining((r) => (r > 0 ? r - 1 : secondsToMidnight())),
+      () =>
+        setRemaining((r) =>
+          r > 0 ? r - 1 : secondsToNextCvvRotation(),
+        ),
       1000,
     );
     return () => clearInterval(id);
