@@ -35,7 +35,7 @@ export default function Login() {
         body: JSON.stringify({ email, password }),
       });
 
-      console.log("res", res);
+
       router.push({
         pathname: "/verify",
         params: { email, preAuthToken: res.token },

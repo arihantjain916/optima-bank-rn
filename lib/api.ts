@@ -1,7 +1,6 @@
 import { getToken } from "./storage";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000/api";
-console.log("BASE_URL", BASE_URL);
 
 export async function api<T>(
   path: string,
@@ -9,6 +8,7 @@ export async function api<T>(
 ): Promise<T> {
   const token = await getToken();
   const method = options.method ?? "GET";
+  console.log("path", path);
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers: {
@@ -28,13 +28,16 @@ export async function api<T>(
   }
 
   if (!res.ok) {
-    const message = (data as { message?: string })?.message ?? `HTTP ${res.status}`;
+    const message =
+      (data as { message?: string })?.message ?? `HTTP ${res.status}`;
     throw new Error(`${method} ${path} → ${message}`);
   }
 
   // 2xx but the body wasn't JSON: say so clearly instead of crashing on "<".
   if (data === null && raw) {
-    throw new Error(`${method} ${path} → expected JSON, got: ${raw.slice(0, 80)}`);
+    throw new Error(
+      `${method} ${path} → expected JSON, got: ${raw.slice(0, 80)}`,
+    );
   }
 
   return data as T;

@@ -40,7 +40,6 @@ export default function Verify() {
   // Send the OTP. The MFA route is protected, so we authorize it with the
   // provisional token from login (it isn't in secure-store yet).
   useEffect(() => {
-    console.log("email", email, "preAuthToken", preAuthToken);
     if (!email || !preAuthToken) return;
     (async () => {
       try {
@@ -69,7 +68,7 @@ export default function Verify() {
         },
       );
 
-      await signIn(res.token); // commit the session token -> guard -> dashboard
+      await signIn(res.token, email); // commit session + email -> guard -> dashboard
     } catch {
       setError("That code didn't match. Try again.");
       setCode("");
