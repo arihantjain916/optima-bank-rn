@@ -13,7 +13,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const TEXT = "#F8FAFC";
 const MUTED = "#94A3B8";
@@ -86,7 +85,6 @@ function CardNetworkLogo({ network }: { network?: string }) {
 
 export default function Card() {
   const { email } = useAuth();
-  const insets = useSafeAreaInsets();
   const [flipped, setFlipped] = useState(false);
   const flip = useRef(new Animated.Value(0)).current;
   const [remaining, setRemaining] = useState(secondsToNextCvvRotation());
@@ -217,7 +215,7 @@ export default function Card() {
       style={styles.fill}
       contentContainerStyle={{
         padding: 20,
-        paddingTop: insets.top + 12,
+        paddingTop: 20,
         paddingBottom: 32,
       }}
       refreshControl={
@@ -228,17 +226,6 @@ export default function Card() {
         />
       }
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.avatar}>
-            <Ionicons name="person" size={18} color="#60A5FA" />
-          </View>
-          <Text style={styles.brand}>Optima Bank</Text>
-        </View>
-        <Ionicons name="notifications-outline" size={22} color={TEXT} />
-      </View>
-
       {/* Balance */}
       <Text style={styles.balLabel}>CARD STATUS</Text>
       <View style={styles.balRow}>
@@ -421,22 +408,6 @@ const CARD_HEIGHT = 200;
 
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: "#0A0E1A" },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "rgba(96,165,250,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  brand: { color: "#60A5FA", fontSize: 18, fontWeight: "800" },
 
   balLabel: {
     color: MUTED,

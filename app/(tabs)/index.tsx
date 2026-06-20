@@ -10,7 +10,6 @@ import {
   Text,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -44,7 +43,6 @@ function money(n: number) {
 }
 
 export default function Dashboard() {
-  const insets = useSafeAreaInsets();
   const { email } = useAuth();
   const [hideBalance, setHideBalance] = useState(false);
   const [data, setData] = useState<Dashboard | null>(null);
@@ -79,7 +77,6 @@ export default function Dashboard() {
     load();
   }, [load]);
 
-  const firstName = data?.name?.split(" ")[0] ?? "there";
   const last4 = data?.account_no;
   const txCount =
     (data?.sentTransaction.length ?? 0) +
@@ -90,7 +87,7 @@ export default function Dashboard() {
       style={styles.fill}
       contentContainerStyle={{
         padding: 20,
-        paddingTop: insets.top + 12,
+        paddingTop: 20,
         paddingBottom: 32,
       }}
       refreshControl={
@@ -101,17 +98,6 @@ export default function Dashboard() {
         />
       }
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.avatar}>
-            <Ionicons name="person" size={18} color="#60A5FA" />
-          </View>
-          <Text style={styles.hello}>Hello, {firstName}</Text>
-        </View>
-        <Ionicons name="notifications-outline" size={22} color={TEXT} />
-      </View>
-
       {/* Account card */}
       <LinearGradient
         colors={["#2563EB", "#1D4ED8"]}
@@ -196,22 +182,6 @@ export default function Dashboard() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: "#0A0E1A" },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "rgba(96,165,250,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  hello: { color: "#60A5FA", fontSize: 18, fontWeight: "800" },
 
   accountCard: { borderRadius: 20, padding: 20, marginTop: 20, gap: 14 },
   accountTop: {
