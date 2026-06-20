@@ -1,3 +1,4 @@
+import { api } from "@/lib/api";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
@@ -18,7 +19,11 @@ const TEXT = "#F8FAFC";
 const MUTED = "#94A3B8";
 
 // Tiny password-strength heuristic → drives the meter under the field.
-function getStrength(pw: string): { label: string; color: string; ratio: number } {
+function getStrength(pw: string): {
+  label: string;
+  color: string;
+  ratio: number;
+} {
   let score = 0;
   if (pw.length >= 8) score++;
   if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
@@ -32,47 +37,83 @@ function getStrength(pw: string): { label: string; color: string; ratio: number 
 
 export default function Register() {
   const insets = useSafeAreaInsets();
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFullName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
 
   const strength = useMemo(() => getStrength(password), [password]);
 
-  function onCreate() {
-    // TODO: validate (password === confirm) then call the register API.
-    // On success the backend returns card no. + CVV + account no. + $2000 —
-    // route to a success screen that shows them.
+  async function onCreate() {
+    if (password !== confirm) {
+      alert("Passwords do not match");
+      return;
+    }
+
+    try {
+      const payload = {
+        email,
+        password,
+        name: `${firstName} ${lastName}`.trim(),
+      };
+      const res = await api("/auth/register", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      router.push({ pathname: "/login" });
+    } catch (e: any) {
+      console.error("e", e);
+    }
   }
 
   return (
     <KeyboardAvoidingView
       style={styles.fill}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       {/* Top bar: back + centered brand */}
       <View style={[styles.topbar, { paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.back}>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={12}
+          style={styles.back}
+        >
           <Ionicons name="arrow-back" size={24} color={TEXT} />
         </Pressable>
         <Text style={styles.topbarTitle}>Optima Bank</Text>
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={[
+          styles.scroll,
+          { paddingBottom: insets.bottom + 24 },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.card}>
           <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join the gold standard in institutional finance.</Text>
+          <Text style={styles.subtitle}>
+            Join the gold standard in institutional finance.
+          </Text>
 
           <TextField
             label="FULL NAME"
-            value={fullName}
+            value={firstName}
             onChangeText={setFullName}
-            placeholder="Johnathan Doe"
+            placeholder="Johnathan"
             autoCapitalize="words"
           />
+
+          <TextField
+            label="LAST NAME"
+            value={lastName}
+            onChangeText={setLastName}
+            placeholder="Doe"
+            autoCapitalize="words"
+          />
+
           <TextField
             label="EMAIL ADDRESS"
             value={email}
@@ -99,11 +140,16 @@ export default function Register() {
                 <View
                   style={[
                     styles.meterFill,
-                    { width: `${strength.ratio * 100}%`, backgroundColor: strength.color },
+                    {
+                      width: `${strength.ratio * 100}%`,
+                      backgroundColor: strength.color,
+                    },
                   ]}
                 />
               </View>
-              <Text style={[styles.meterLabel, { color: strength.color }]}>{strength.label}</Text>
+              <Text style={[styles.meterLabel, { color: strength.color }]}>
+                {strength.label}
+              </Text>
             </View>
           )}
 
@@ -117,7 +163,10 @@ export default function Register() {
           />
 
           <Pressable
-            style={({ pressed }) => [styles.primaryBtn, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.primaryBtn,
+              pressed && styles.pressed,
+            ]}
             onPress={onCreate}
           >
             <Text style={styles.primaryText}>Create Account</Text>
@@ -143,7 +192,11 @@ function TextField({
   return (
     <>
       <Text style={styles.label}>{label}</Text>
-      <TextInput style={styles.input} placeholderTextColor={MUTED} {...inputProps} />
+      <TextInput
+        style={styles.input}
+        placeholderTextColor={MUTED}
+        {...inputProps}
+      />
     </>
   );
 }
@@ -171,7 +224,13 @@ const styles = StyleSheet.create({
   title: { color: TEXT, fontSize: 24, fontWeight: "800" },
   subtitle: { color: MUTED, fontSize: 14, marginTop: 6, marginBottom: 8 },
 
-  label: { color: MUTED, fontSize: 11, fontWeight: "700", letterSpacing: 1, marginTop: 18 },
+  label: {
+    color: MUTED,
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1,
+    marginTop: 18,
+  },
   input: {
     height: 52,
     borderRadius: 10,
@@ -182,8 +241,19 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
-  meterRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 10 },
-  meterTrack: { flex: 1, height: 4, borderRadius: 2, backgroundColor: "#1E293B", overflow: "hidden" },
+  meterRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 10,
+  },
+  meterTrack: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#1E293B",
+    overflow: "hidden",
+  },
   meterFill: { height: "100%", borderRadius: 2 },
   meterLabel: { fontSize: 11, fontWeight: "800", letterSpacing: 0.5 },
 

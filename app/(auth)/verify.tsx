@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 const BLUE = "#2563EB";
@@ -20,7 +21,7 @@ const TEXT = "#F8FAFC";
 const MUTED = "#94A3B8";
 const RED = "#EF4444";
 
-const CODE_LENGTH = 6;
+const CODE_LENGTH = 4;
 const CELLS = Array.from({ length: CODE_LENGTH });
 
 export default function Verify() {
@@ -31,13 +32,44 @@ export default function Verify() {
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { email, preAuthToken } = useLocalSearchParams<{
+    email: string;
+    preAuthToken: string;
+  }>();
+
+  // Send the OTP. The MFA route is protected, so we authorize it with the
+  // provisional token from login (it isn't in secure-store yet).
+  useEffect(() => {
+    console.log("email", email, "preAuthToken", preAuthToken);
+    if (!email || !preAuthToken) return;
+    (async () => {
+      try {
+        await api(`/mfa/${encodeURIComponent(email)}`, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${preAuthToken}` },
+        });
+      } catch (e) {
+        console.error("mfa init", e);
+      }
+    })();
+  }, [email, preAuthToken]);
+
   async function onVerify(value: string) {
     setVerifying(true);
     setError(null);
     try {
-      // TODO: POST { code: value } to the verify endpoint; use the real token.
-      await new Promise((r) => setTimeout(r, 700)); // simulate the request
-      await signIn(`dev-token-${value}`); // guard flips -> redirects to (tabs)
+      // The pre-auth `token` authorizes this call; the response carries the
+      // real session token, which is what we commit.
+      const res = await api<{ token: string }>(
+        `/mfa/${encodeURIComponent(email)}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${preAuthToken}` },
+          body: JSON.stringify({ otp: value }),
+        },
+      );
+
+      await signIn(res.token); // commit the session token -> guard -> dashboard
     } catch {
       setError("That code didn't match. Try again.");
       setCode("");
@@ -66,11 +98,14 @@ export default function Verify() {
         </View>
         <Text style={styles.title}>Verify it&apos;s you</Text>
         <Text style={styles.subtitle}>
-          Enter the 6-digit code we sent to your registered device.
+          Enter the 4-digit code we sent to your registered device.
         </Text>
 
         {/* One real input, six visual cells derived from its value. */}
-        <Pressable style={styles.codeWrap} onPress={() => inputRef.current?.focus()}>
+        <Pressable
+          style={styles.codeWrap}
+          onPress={() => inputRef.current?.focus()}
+        >
           <View style={styles.cells}>
             {CELLS.map((_, i) => {
               const filled = i < code.length;
@@ -93,7 +128,9 @@ export default function Verify() {
           <TextInput
             ref={inputRef}
             value={code}
-            onChangeText={(t) => setCode(t.replace(/[^0-9]/g, "").slice(0, CODE_LENGTH))}
+            onChangeText={(t) =>
+              setCode(t.replace(/[^0-9]/g, "").slice(0, CODE_LENGTH))
+            }
             keyboardType="number-pad"
             maxLength={CODE_LENGTH}
             autoFocus
@@ -110,9 +147,15 @@ export default function Verify() {
           {verifying ? (
             <ActivityIndicator color={BLUE} />
           ) : (
-            <Pressable onPress={() => { /* TODO: resend code endpoint */ }} hitSlop={8}>
+            <Pressable
+              onPress={() => {
+                /* TODO: resend code endpoint */
+              }}
+              hitSlop={8}
+            >
               <Text style={styles.resend}>
-                Didn&apos;t get a code? <Text style={styles.resendLink}>Resend</Text>
+                Didn&apos;t get a code?{" "}
+                <Text style={styles.resendLink}>Resend</Text>
               </Text>
             </Pressable>
           )}
@@ -137,7 +180,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   title: { color: TEXT, fontSize: 22, fontWeight: "800" },
-  subtitle: { color: MUTED, fontSize: 14, textAlign: "center", marginTop: 8, lineHeight: 20 },
+  subtitle: {
+    color: MUTED,
+    fontSize: 14,
+    textAlign: "center",
+    marginTop: 8,
+    lineHeight: 20,
+  },
 
   codeWrap: { marginTop: 32, width: "100%" },
   cells: { flexDirection: "row", justifyContent: "space-between" },
