@@ -1,10 +1,16 @@
 import { GlobalStatusScreen } from "@/components/global-status-screen";
 import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { CustomSplash } from "@/components/custom-splash";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { getUserPreference } from "@/lib/storage";
+import {
+  authenticateAsync,
+  hasHardwareAsync,
+  isEnrolledAsync,
+} from "expo-local-authentication";
 
 // Module scope: must run before any component renders, or auto-hide wins the race.
 SplashScreen.preventAutoHideAsync();
@@ -30,8 +36,7 @@ export function ErrorBoundary({
       status="error"
       title="Something went wrong"
       message={
-        error.message ||
-        "We couldn't complete that request. Please try again."
+        error.message || "We couldn't complete that request. Please try again."
       }
       primaryLabel="Try Again"
       onPrimary={() => void retry()}
@@ -42,8 +47,50 @@ export function ErrorBoundary({
 }
 
 function RootNavigator() {
-  const { token, isLoading } = useAuth();
+  const { token, isLoading, signOut } = useAuth();
   const [splashGone, setSplashGone] = useState(false);
+  const [biometricStatus, setBiometricStatus] = useState<
+    "checking" | "unlocked" | "locked"
+  >("checking");
+
+  const verifyBiometrics = useCallback(async () => {
+    if (isLoading) return;
+
+    // Biometrics protect an existing signed-in session; never show a device
+    // prompt before the user has authenticated or when the feature is off.
+    if (!token) {
+      setBiometricStatus("unlocked");
+      return;
+    }
+
+    setBiometricStatus("checking");
+    try {
+      const enabled = await getUserPreference("biometrics");
+      if (enabled !== "true") {
+        setBiometricStatus("unlocked");
+        return;
+      }
+
+      const available = (await hasHardwareAsync()) && (await isEnrolledAsync());
+      if (!available) {
+        setBiometricStatus("locked");
+        return;
+      }
+
+      const result = await authenticateAsync({
+        promptMessage: "Unlock Optima Bank",
+        cancelLabel: "Cancel",
+        disableDeviceFallback: true,
+      });
+      setBiometricStatus(result.success ? "unlocked" : "locked");
+    } catch {
+      setBiometricStatus("locked");
+    }
+  }, [isLoading, token]);
+
+  useEffect(() => {
+    void verifyBiometrics();
+  }, [verifyBiometrics]);
 
   return (
     <>
@@ -63,9 +110,24 @@ function RootNavigator() {
         <Stack.Screen name="success" />
       </Stack>
 
-      {/* Splash stays up until the session is restored (isLoading -> false). */}
-      {!splashGone && (
-        <CustomSplash ready={!isLoading} onDone={() => setSplashGone(true)} />
+      {biometricStatus === "locked" ? (
+        <GlobalStatusScreen
+          status="error"
+          title="Unlock Optima Bank"
+          message="Biometric verification is required to access your account."
+          primaryLabel="Try Again"
+          onPrimary={() => void verifyBiometrics()}
+          secondaryLabel="Sign Out"
+          onSecondary={() => void signOut()}
+        />
+      ) : null}
+
+      {/* Splash stays up until session restoration and biometric verification finish. */}
+      {!splashGone && biometricStatus !== "locked" && (
+        <CustomSplash
+          ready={!isLoading && biometricStatus === "unlocked"}
+          onDone={() => setSplashGone(true)}
+        />
       )}
     </>
   );

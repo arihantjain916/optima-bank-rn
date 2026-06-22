@@ -30,3 +30,11 @@ export function setEmail(email: string): Promise<void> {
 export function clearEmail(): Promise<void> {
   return SecureStore.deleteItemAsync(EMAIL_KEY);
 }
+
+export function getUserPreference(key: string) {
+  return SecureStore.getItemAsync(key);
+}
+
+export function setUserPreference(key: string, value: string) {
+  return SecureStore.setItemAsync(key, value);
+}

@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -9,8 +9,9 @@ import {
   View,
 } from "react-native";
 
-import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { getUserPreference, setUserPreference } from "@/lib/storage";
 import {
   authenticateAsync,
   hasHardwareAsync,
@@ -65,13 +66,35 @@ function SettingRow({
 
 export default function Profile() {
   const { email, signOut } = useAuth();
-  const [biometrics, setBiometrics] = useState(false);
-  const [notifications, setNotifications] = useState(true);
-  const [darkMode, setDarkMode] = useState(true);
+  const [biometrics, setBiometrics] = useState(
+    Boolean(getUserPreference("biometrics")),
+  );
+  const [notifications, setNotifications] = useState(
+    Boolean(getUserPreference("notifications")),
+  );
+  const [darkMode, setDarkMode] = useState(
+    Boolean(getUserPreference("darkMode")),
+  );
   const [savingPreferences, setSavingPreferences] = useState(false);
   const [preferenceError, setPreferenceError] = useState<string | null>(null);
   const name = email?.split("@")[0].replace(/[._-]/g, " ") || "John Doe";
   const displayName = name.replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+  useEffect(() => {
+    async function loadPreferences() {
+      const [biometrics, notifications, darkMode] = await Promise.all([
+        getUserPreference("biometrics"),
+        getUserPreference("notifications"),
+        getUserPreference("darkMode"),
+      ]);
+
+      setBiometrics(biometrics === "true");
+      setNotifications(notifications !== "false");
+      setDarkMode(darkMode !== "light");
+    }
+
+    void loadPreferences();
+  }, []);
 
   async function savePreferences(next: {
     biometrics: boolean;
@@ -89,6 +112,10 @@ export default function Profile() {
           theme: next.darkMode ? "dark" : "light",
         }),
       });
+
+      setUserPreference("biometrics", next.biometrics.toString());
+      setUserPreference("notifications", next.notifications.toString());
+      setUserPreference("darkMode", next.darkMode.toString());
     } catch {
       setBiometrics(biometrics);
       setNotifications(notifications);
@@ -103,7 +130,9 @@ export default function Profile() {
     if (nextValue) {
       const available = (await hasHardwareAsync()) && (await isEnrolledAsync());
       if (!available) {
-        setPreferenceError("Set up Face ID or Fingerprint on this device first.");
+        setPreferenceError(
+          "Set up Face ID or Fingerprint on this device first.",
+        );
         return;
       }
 
@@ -207,7 +236,9 @@ export default function Profile() {
         />
       </View>
 
-      {preferenceError ? <Text style={styles.preferenceError}>{preferenceError}</Text> : null}
+      {preferenceError ? (
+        <Text style={styles.preferenceError}>{preferenceError}</Text>
+      ) : null}
 
       <Text style={styles.section}>SUPPORT</Text>
       <View style={styles.group}>
@@ -283,7 +314,12 @@ const styles = StyleSheet.create({
   rowCopy: { flex: 1 },
   rowTitle: { color: TEXT, fontSize: 13, fontWeight: "800" },
   rowSub: { color: MUTED, fontSize: 10, marginTop: 2 },
-  preferenceError: { color: "#F87171", fontSize: 11, marginTop: 9, textAlign: "center" },
+  preferenceError: {
+    color: "#F87171",
+    fontSize: 11,
+    marginTop: 9,
+    textAlign: "center",
+  },
   logout: {
     height: 42,
     borderRadius: 8,
