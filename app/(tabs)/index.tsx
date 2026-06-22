@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Pressable,
   RefreshControl,
@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 
+import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 const TEXT = "#F8FAFC";
@@ -24,19 +25,22 @@ type Dashboard = {
   id: string;
   openingBalance: number;
   currentBalance: number;
-  sentTransaction: Transaction[];
-  receivedTransaction: Transaction[];
 };
 
 type Transaction = {
   id: string;
-  sender_acc_no: string;
-  receiver_acc_no: string;
-  amount: number;
+  date: string;
+  amount: number | string;
   type: string;
-  transfer_date: string;
+  acc_no: string;
   method: string;
 };
+
+function asTransactions(value: unknown): Transaction[] {
+  if (Array.isArray(value)) return value as Transaction[];
+  const data = (value as { data?: unknown })?.data;
+  return Array.isArray(data) ? (data as Transaction[]) : [];
+}
 
 const ACTIONS = [
   { icon: "paper-plane", label: "Send", href: "/send" },
@@ -68,6 +72,7 @@ export default function Dashboard() {
   const { refreshUserInfo, userInfo } = useAuth();
   const [hideBalance, setHideBalance] = useState(false);
   const [data, setData] = useState<Dashboard | null>(null);
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +88,10 @@ export default function Dashboard() {
           : (userInfo ?? (await refreshUserInfo()));
         if (!dashboard) throw new Error("Missing dashboard data");
         setData(dashboard as Dashboard);
+        const recent = await api<unknown>(
+          `/transaction/recent/${encodeURIComponent(dashboard.id)}`,
+        );
+        setRecentTransactions(asTransactions(recent).slice(0, 5));
       } catch {
         setError("Couldn't load your dashboard.");
       } finally {
@@ -101,26 +110,6 @@ export default function Dashboard() {
     setRefreshing(true);
     load(true);
   }, [load]);
-
-  const recentTransactions = useMemo(() => {
-    if (!data) return [];
-
-    // The API includes paired ledger entries for a single transfer. Group them
-    // by their transfer details so the dashboard shows one row per transfer.
-    const unique = new Map<string, Transaction>();
-    [...data.sentTransaction, ...data.receivedTransaction].forEach((tx) => {
-      const key = `${tx.sender_acc_no}-${tx.receiver_acc_no}-${tx.amount}-${tx.type}-${tx.transfer_date}`;
-      unique.set(key, tx);
-    });
-
-    return [...unique.values()]
-      .sort(
-        (a, b) =>
-          new Date(b.transfer_date).getTime() -
-          new Date(a.transfer_date).getTime(),
-      )
-      .slice(0, 5);
-  }, [data]);
 
   return (
     <ScrollView
@@ -213,11 +202,8 @@ export default function Dashboard() {
           <Text style={styles.empty}>No transactions yet.</Text>
         ) : (
           recentTransactions.map((tx) => {
-            const outgoing = tx.sender_acc_no === data?.account_no;
-            const counterparty = outgoing
-              ? tx.receiver_acc_no
-              : tx.sender_acc_no;
-            const suffix = counterparty.slice(-4);
+            const outgoing = tx.method.toUpperCase() === "DEBIT";
+            const suffix = tx.acc_no?.slice(-4) || "0000";
 
             return (
               <View key={tx.id} style={styles.txRow}>
@@ -240,7 +226,7 @@ export default function Dashboard() {
                     {outgoing ? "Transfer to" : "Transfer from"} •••• {suffix}
                   </Text>
                   <Text style={styles.txMeta}>
-                    {tx.type} · {transactionDate(tx.transfer_date)}
+                    {tx.type} · {transactionDate(tx.date)}
                   </Text>
                 </View>
                 <Text
@@ -250,7 +236,7 @@ export default function Dashboard() {
                   ]}
                 >
                   {outgoing ? "−" : "+"}
-                  {money(tx.amount)}
+                  {money(Number(tx.amount || 0))}
                 </Text>
               </View>
             );
