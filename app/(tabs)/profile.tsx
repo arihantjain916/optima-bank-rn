@@ -220,6 +220,7 @@ export default function Profile() {
           icon="person-outline"
           title="Account Details"
           subtitle="Edit your personal information"
+          onPress={() => router.push("/account-details")}
         />
       </View>
 

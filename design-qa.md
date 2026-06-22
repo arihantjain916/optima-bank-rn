@@ -38,6 +38,48 @@ blocked
 
 ---
 
+# Account Details design QA
+
+- Source visual truth: `C:\tmp\optima-account-details-reference.png` (Stitch Account Details screen).
+- Implementation screenshot: unavailable; no Android/iOS simulator, device, browser, or capture tool is available in this session.
+- Viewport/state: intended portrait mobile Account Details route with cached dashboard data.
+- Full-view comparison evidence: blocked because the rendered Expo screen cannot be captured.
+- Focused region comparison evidence: blocked for the same reason.
+
+## Findings
+
+- [P1] Rendered visual fidelity cannot be verified.
+  - Location: `app/(tabs)/account-details.tsx`.
+  - Evidence: the Stitch source image is available locally, but no implementation screenshot is available.
+  - Impact: exact form-field geometry, card spacing, and status-card proportions cannot be checked against the source.
+  - Fix: capture the Account Details route on a portrait device/simulator and compare it directly with the saved Stitch reference.
+
+## Open Questions
+
+- The dashboard response may not currently include phone number, residential address, KYC status, or account type. The implementation displays neutral fallbacks until those fields are supplied by the backend.
+
+## Implementation Checklist
+
+1. Capture the route at the source viewport.
+2. Compare the identity header, four detail fields, and two status cards against the Stitch image.
+3. Confirm backend field names for phone, address, KYC status, and account tier.
+
+## Follow-up Polish
+
+- Replace the profile icon with a supplied user photo when the backend exposes a verified avatar URL.
+
+## Patches made
+
+- Added the Account Details route and hidden tab registration.
+- Connected Profile's Account Details row to the new route.
+- Rendered cached dashboard identity/account fields with safe missing-data fallbacks.
+
+## Final result
+
+blocked
+
+---
+
 # Global status screens design QA
 
 - Source visual truth: `C:\tmp\optima-error-reference.png` and `C:\tmp\optima-success-reference.png` (Stitch Error Modal State and Success & Error Modals).
