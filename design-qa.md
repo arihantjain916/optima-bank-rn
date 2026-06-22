@@ -38,6 +38,48 @@ blocked
 
 ---
 
+# Global status screens design QA
+
+- Source visual truth: `C:\tmp\optima-error-reference.png` and `C:\tmp\optima-success-reference.png` (Stitch Error Modal State and Success & Error Modals).
+- Implementation screenshot: unavailable; no browser, Android emulator, iOS simulator, or device-capture tool is available in this session.
+- Viewport/state: intended portrait mobile global error boundary and `/success` route.
+- Full-view comparison evidence: blocked because the rendered Expo states cannot be captured.
+- Focused region comparison evidence: blocked for the same reason.
+
+## Findings
+
+- [P1] Rendered fidelity cannot be verified.
+  - Location: `components/global-status-screen.tsx`.
+  - Evidence: the two Stitch source screens are available locally, but the running app cannot be captured in this session.
+  - Impact: card centering, modal width, dimmed-backdrop intensity, and action-button rhythm cannot be verified against the visual target.
+  - Fix: capture the runtime error boundary and `/success` route on a portrait mobile device or simulator, then compare with the two saved source images.
+
+## Open Questions
+
+- The error boundary routes to onboarding when the user chooses Return Home. A future iteration could retain the last signed-in destination when the navigation state is available.
+
+## Implementation Checklist
+
+1. Trigger an error in a route and capture the global fallback at the target viewport.
+2. Open `/success` with default and custom query parameters, then capture both primary and share actions.
+3. Compare card geometry, typography, colors, and icon sizing with the Stitch references.
+
+## Follow-up Polish
+
+- Tune shadow and backdrop opacity after a device capture.
+
+## Patches made
+
+- Added a reusable global status card with Stitch-matched error and success states.
+- Exported the root Expo Router error boundary with Try Again and Return Home actions.
+- Added the `/success` route with configurable copy, a continue destination, and native share action.
+
+## Final result
+
+blocked
+
+---
+
 # Transaction Analytics Overview design QA
 
 - Source visual truth: `C:\tmp\optima-transaction-analytics-reference.png` (Stitch screen: `projects/723629649857275070/screens/fec67f3f27414d8fb5eba37449312096`).

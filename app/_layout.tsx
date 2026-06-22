@@ -1,4 +1,5 @@
-import { Stack } from "expo-router";
+import { GlobalStatusScreen } from "@/components/global-status-screen";
+import { router, Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useState } from "react";
 
@@ -14,6 +15,29 @@ export default function RootLayout() {
     <AuthProvider>
       <RootNavigator />
     </AuthProvider>
+  );
+}
+
+export function ErrorBoundary({
+  error,
+  retry,
+}: {
+  error: Error;
+  retry: () => Promise<void>;
+}) {
+  return (
+    <GlobalStatusScreen
+      status="error"
+      title="Something went wrong"
+      message={
+        error.message ||
+        "We couldn't complete that request. Please try again."
+      }
+      primaryLabel="Try Again"
+      onPrimary={() => void retry()}
+      secondaryLabel="Return Home"
+      onSecondary={() => router.replace("/")}
+    />
   );
 }
 
@@ -34,6 +58,9 @@ function RootNavigator() {
         <Stack.Protected guard={!!token}>
           <Stack.Screen name="(tabs)" />
         </Stack.Protected>
+
+        {/* A global destination, but never the initial route. */}
+        <Stack.Screen name="success" />
       </Stack>
 
       {/* Splash stays up until the session is restored (isLoading -> false). */}
