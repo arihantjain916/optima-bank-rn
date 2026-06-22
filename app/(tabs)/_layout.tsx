@@ -35,6 +35,7 @@ export default function TabsLayout() {
         name="profile"
         options={{ title: "Profile", tabBarIcon: ({ color, size }) => <Ionicons name="person" color={color} size={size} /> }}
       />
+      <Tabs.Screen name="change-password" options={{ href: null, headerShown: false }} />
       <Tabs.Screen name="transaction/[id]" options={{ href: null, headerShown: false }} />
     </Tabs>
   );

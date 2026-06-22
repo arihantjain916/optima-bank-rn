@@ -30,11 +30,14 @@ export default function Login() {
 
   async function onSignIn() {
     try {
+      if (password.length < 8) {
+        alert("Password must be at least 8 characters.");
+        return;
+      }
       const res = await api<{ token: string }>("/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-
 
       router.push({
         pathname: "/verify",

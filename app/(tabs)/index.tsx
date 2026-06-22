@@ -11,7 +11,6 @@ import {
   View,
 } from "react-native";
 
-import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 const TEXT = "#F8FAFC";
@@ -66,7 +65,7 @@ function transactionDate(value: string) {
 }
 
 export default function Dashboard() {
-  const { email } = useAuth();
+  const { refreshUserInfo, userInfo } = useAuth();
   const [hideBalance, setHideBalance] = useState(false);
   const [data, setData] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,21 +74,24 @@ export default function Dashboard() {
 
   // Fetch lives in a callback so both the initial effect and pull-to-refresh
   // can reuse it. NOTE: the component itself must NOT be async.
-  const load = useCallback(async () => {
-    if (!email) return;
-    try {
-      setError(null);
-      const res = await api<{ data: Dashboard }>(
-        `/dashboard/${encodeURIComponent(email)}`,
-      );
-      setData(res.data);
-    } catch {
-      setError("Couldn't load your dashboard.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [email]);
+  const load = useCallback(
+    async (force = false) => {
+      try {
+        setError(null);
+        const dashboard = force
+          ? await refreshUserInfo(true)
+          : (userInfo ?? (await refreshUserInfo()));
+        if (!dashboard) throw new Error("Missing dashboard data");
+        setData(dashboard as Dashboard);
+      } catch {
+        setError("Couldn't load your dashboard.");
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [refreshUserInfo, userInfo],
+  );
 
   useEffect(() => {
     load();
@@ -97,7 +99,7 @@ export default function Dashboard() {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    load();
+    load(true);
   }, [load]);
 
   const recentTransactions = useMemo(() => {

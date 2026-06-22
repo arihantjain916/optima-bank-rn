@@ -17,6 +17,7 @@ import {
   hasHardwareAsync,
   isEnrolledAsync,
 } from "expo-local-authentication";
+import { router } from "expo-router";
 
 const TEXT = "#F8FAFC";
 const MUTED = "#94A3B8";
@@ -29,6 +30,7 @@ type RowProps = {
   value?: boolean;
   onValueChange?: (value: boolean) => void;
   disabled?: boolean;
+  onPress?: () => void;
 };
 
 function SettingRow({
@@ -39,9 +41,17 @@ function SettingRow({
   value,
   onValueChange,
   disabled,
+  onPress,
 }: RowProps) {
   return (
-    <View style={styles.row}>
+    <Pressable
+      style={({ pressed }) => [
+        styles.row,
+        pressed && onPress && styles.rowPressed,
+      ]}
+      onPress={onPress}
+      disabled={!onPress}
+    >
       <View style={styles.rowIcon}>
         <Ionicons name={icon} size={19} color="#93C5FD" />
       </View>
@@ -60,12 +70,12 @@ function SettingRow({
       ) : (
         <Ionicons name="chevron-forward" size={18} color="#64748B" />
       )}
-    </View>
+    </Pressable>
   );
 }
 
 export default function Profile() {
-  const { email, signOut } = useAuth();
+  const { email, signOut, userInfo } = useAuth();
   const [biometrics, setBiometrics] = useState(
     Boolean(getUserPreference("biometrics")),
   );
@@ -169,6 +179,28 @@ export default function Profile() {
     });
   }
 
+  function formatDate(date?: string) {
+    if (!date) return "not yet changed";
+    const parsed = new Date(date);
+    if (Number.isNaN(parsed.getTime())) return "not yet changed";
+
+    const minutes = Math.max(0, Math.floor((Date.now() - parsed.getTime()) / 60000));
+    if (minutes < 1) return "just now";
+    if (minutes < 60) return `${minutes} min ago`;
+
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
+
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days} ${days === 1 ? "day" : "days"} ago`;
+
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months} ${months === 1 ? "month" : "months"} ago`;
+
+    const years = Math.floor(months / 12);
+    return `${years} ${years === 1 ? "year" : "years"} ago`;
+  }
+
   return (
     <ScrollView style={styles.fill} contentContainerStyle={styles.content}>
       <View style={styles.profileHero}>
@@ -196,7 +228,8 @@ export default function Profile() {
         <SettingRow
           icon="lock-closed-outline"
           title="Change Password"
-          subtitle="Last changed 3 months ago"
+          subtitle={`Last changed ${formatDate(userInfo?.password_updated_at)}`}
+          onPress={() => router.push("/change-password")}
         />
         <SettingRow
           icon="finger-print-outline"
@@ -303,6 +336,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "rgba(148,163,184,0.08)",
   },
+  rowPressed: { opacity: 0.72 },
   rowIcon: {
     width: 30,
     height: 30,

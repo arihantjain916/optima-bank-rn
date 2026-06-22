@@ -8,7 +8,7 @@ export async function api<T>(
 ): Promise<T> {
   const token = await getToken();
   const method = options.method ?? "GET";
-  console.log("path", path);
+  console.log("path", method, ":", path);
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers: {

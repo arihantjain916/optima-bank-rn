@@ -27,11 +27,6 @@ const RED = "#F87171";
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "backspace"] as const;
 const TRANSFER_TYPES = ["NEFT", "IMPS", "RTGS"] as const;
 
-type Dashboard = {
-  currentBalance: number;
-  account_no: string;
-};
-
 function money(value: number) {
   return `₹${value.toLocaleString("en-IN", {
     minimumFractionDigits: 2,
@@ -44,7 +39,7 @@ function formatAccount(value: string) {
 }
 
 export default function Send() {
-  const { email } = useAuth();
+  const { refreshUserInfo, userInfo } = useAuth();
   const insets = useSafeAreaInsets();
   const [account, setAccount] = useState("");
   const [amount, setAmount] = useState("");
@@ -61,21 +56,30 @@ export default function Send() {
   const [successMessage, setSuccessMessage] = useState("Amount transferred successfully");
 
   const loadBalance = useCallback(async () => {
-    if (!email) return;
+    const dashboard = userInfo ?? (await refreshUserInfo());
+    if (!dashboard) {
+      setError("Couldn't load your available balance.");
+      setLoadingBalance(false);
+      setRefreshing(false);
+      return;
+    }
     try {
       setError(null);
-      const response = await api<{ data: Dashboard }>(
-        `/dashboard/${encodeURIComponent(email)}`,
+      setBalance(
+        typeof dashboard.currentBalance === "number"
+          ? dashboard.currentBalance
+          : null,
       );
-      setBalance(response.data.currentBalance);
-      setSenderAccount(response.data.account_no);
+      setSenderAccount(
+        typeof dashboard.account_no === "string" ? dashboard.account_no : null,
+      );
     } catch {
       setError("Couldn't load your available balance.");
     } finally {
       setLoadingBalance(false);
       setRefreshing(false);
     }
-  }, [email]);
+  }, [refreshUserInfo, userInfo]);
 
   useEffect(() => {
     loadBalance();

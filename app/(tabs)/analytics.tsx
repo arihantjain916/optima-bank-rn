@@ -40,8 +40,6 @@ type Transaction = {
   acc_no: string;
   method: string;
 };
-type Dashboard = { id: string; currentBalance?: number };
-
 function money(value: number, decimals = 2) {
   return `\u20B9${Math.abs(value).toLocaleString("en-IN", {
     minimumFractionDigits: decimals,
@@ -69,7 +67,7 @@ function transactionDate(value: string) {
 }
 
 export default function Analytics() {
-  const { email } = useAuth();
+  const { refreshUserInfo, userInfo } = useAuth();
   const [period, setPeriod] = useState<Period>("week");
   const [history, setHistory] = useState<Transaction[]>([]);
   const [recent, setRecent] = useState<Transaction[]>([]);
@@ -78,17 +76,22 @@ export default function Analytics() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    if (!email) return;
+  const load = useCallback(async (force = false) => {
+    const dashboard = force
+      ? await refreshUserInfo(true)
+      : userInfo ?? (await refreshUserInfo());
+    if (!dashboard) {
+      setError("Couldn't load your spending analytics.");
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     try {
       setError(null);
-      const dashboard = await api<{ data: Dashboard }>(
-        `/dashboard/${encodeURIComponent(email)}`,
-      );
-      const userId = dashboard.data.id;
+      const userId = dashboard.id;
       setCurrentBalance(
-        typeof dashboard.data.currentBalance === "number"
-          ? dashboard.data.currentBalance
+        typeof dashboard.currentBalance === "number"
+          ? dashboard.currentBalance
           : null,
       );
       const [historyResult, recentResult] = await Promise.all([
@@ -105,7 +108,7 @@ export default function Analytics() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [email, period]);
+  }, [period, refreshUserInfo, userInfo]);
 
   useEffect(() => {
     setLoading(true);
@@ -165,7 +168,7 @@ export default function Analytics() {
           refreshing={refreshing}
           onRefresh={() => {
             setRefreshing(true);
-            load();
+            load(true);
           }}
           tintColor={COLORS.cyan}
         />

@@ -51,6 +51,11 @@ export default function Register() {
       return;
     }
 
+    if (password.length < 8) {
+      alert("Password must be at least 8 characters.");
+      return;
+    }
+
     try {
       const payload = {
         email,
