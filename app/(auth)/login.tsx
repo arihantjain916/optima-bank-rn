@@ -1,4 +1,5 @@
 import { api } from "@/lib/api";
+import { validateEmail, validatePassword } from "@/lib/validation";
 import { FontAwesome, Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -29,22 +30,27 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
 
   async function onSignIn() {
+    const normalizedEmail = email.trim().toLowerCase();
+    const validationError = validateEmail(normalizedEmail) || validatePassword(password);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     try {
-      if (password.length < 8) {
-        alert("Password must be at least 8 characters.");
-        return;
-      }
       const res = await api<{ token: string }>("/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        // Mobile authentication is token-based. Do not allow a stale native
+        // cookie to reach the backend and be mistaken for this new session.
+        credentials: "omit",
+        body: JSON.stringify({ email: normalizedEmail, password }),
       });
 
       router.push({
         pathname: "/verify",
-        params: { email, preAuthToken: res.token },
+        params: { email: normalizedEmail, preAuthToken: res.token.trim() },
       });
-    } catch (e: any) {
-      console.error(e);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to sign in.");
     }
   }
 

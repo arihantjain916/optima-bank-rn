@@ -88,7 +88,6 @@ export default function Analytics() {
     }
     try {
       setError(null);
-      const userId = dashboard.id;
       setCurrentBalance(
         typeof dashboard.currentBalance === "number"
           ? dashboard.currentBalance
@@ -96,9 +95,9 @@ export default function Analytics() {
       );
       const [historyResult, recentResult] = await Promise.all([
         api<unknown>(
-          `/transaction/history/${encodeURIComponent(userId)}?period=${period}`,
+          `/transaction/history/me?period=${period}`,
         ),
-        api<unknown>(`/transaction/recent/${encodeURIComponent(userId)}`),
+        api<unknown>("/transaction/recent/me"),
       ]);
       setHistory(asTransactions(historyResult));
       setRecent(asTransactions(recentResult));

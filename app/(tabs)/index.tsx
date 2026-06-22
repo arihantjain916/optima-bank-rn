@@ -72,7 +72,9 @@ export default function Dashboard() {
   const { refreshUserInfo, userInfo } = useAuth();
   const [hideBalance, setHideBalance] = useState(false);
   const [data, setData] = useState<Dashboard | null>(null);
-  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,11 +90,9 @@ export default function Dashboard() {
           : (userInfo ?? (await refreshUserInfo()));
         if (!dashboard) throw new Error("Missing dashboard data");
         setData(dashboard as Dashboard);
-        const recent = await api<unknown>(
-          `/transaction/recent/${encodeURIComponent(dashboard.id)}`,
-        );
+        const recent = await api<unknown>("/transaction/recent/me");
         setRecentTransactions(asTransactions(recent).slice(0, 5));
-      } catch {
+      } catch (e) {
         setError("Couldn't load your dashboard.");
       } finally {
         setLoading(false);

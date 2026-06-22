@@ -1,5 +1,6 @@
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { validateAccountNumber } from "@/lib/validation";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -24,8 +25,8 @@ const MUTED = "#94A3B8";
 const BLUE = "#2563EB";
 const RED = "#F87171";
 
-const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "backspace"] as const;
-const TRANSFER_TYPES = ["NEFT", "IMPS", "RTGS"] as const;
+const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "00", "0", "backspace"] as const;
+const TRANSFER_TYPES = ["UPI", "NEFT", "IMPS", "RTGS"] as const;
 
 function money(value: number) {
   return `₹${value.toLocaleString("en-IN", {
@@ -45,7 +46,6 @@ export default function Send() {
   const [amount, setAmount] = useState("");
   const [transferType, setTransferType] = useState<(typeof TRANSFER_TYPES)[number]>("NEFT");
   const [balance, setBalance] = useState<number | null>(null);
-  const [senderAccount, setSenderAccount] = useState<string | null>(null);
   const [loadingBalance, setLoadingBalance] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,9 +70,6 @@ export default function Send() {
           ? dashboard.currentBalance
           : null,
       );
-      setSenderAccount(
-        typeof dashboard.account_no === "string" ? dashboard.account_no : null,
-      );
     } catch {
       setError("Couldn't load your available balance.");
     } finally {
@@ -87,13 +84,19 @@ export default function Send() {
 
   const numericAmount = Number(amount || 0);
   const recipientDigits = account.replace(/\D/g, "");
-  const accountValid = recipientDigits.length >= 10;
-  const amountValid = numericAmount > 0 && (balance === null || numericAmount <= balance);
+  const accountValidationError = validateAccountNumber(recipientDigits);
+  const accountValid = !accountValidationError;
+  const amountValid =
+    Number.isSafeInteger(numericAmount) &&
+    numericAmount > 0 &&
+    (balance === null || numericAmount <= balance);
   const formValid = accountValid && amountValid;
   const amountError =
-    amount && balance !== null && numericAmount > balance
-      ? "Amount exceeds your available balance."
-      : null;
+    amount && !Number.isSafeInteger(numericAmount)
+      ? "Enter a whole-number amount."
+      : amount && balance !== null && numericAmount > balance
+        ? "Amount exceeds your available balance."
+        : null;
 
   const displayAmount = useMemo(
     () => (amount ? `₹${Number(amount).toLocaleString("en-IN")}` : "₹0"),
@@ -103,15 +106,8 @@ export default function Send() {
   function onKeyPress(key: (typeof KEYS)[number]) {
     setAmount((current) => {
       if (key === "backspace") return current.slice(0, -1);
-      if (key === ".") {
-        if (current.includes(".")) return current;
-        return current ? `${current}.` : "0.";
-      }
-
-      const [whole, decimal = ""] = current.split(".");
-      if (decimal && decimal.length >= 2) return current;
-      if (!current || current === "0") return key;
-      if (whole.length >= 9 && !current.includes(".")) return current;
+      if (!current || current === "0") return key === "00" ? "0" : key;
+      if (current.length >= 9) return current;
       return `${current}${key}`;
     });
   }
@@ -120,8 +116,8 @@ export default function Send() {
     if (!formValid) {
       setError(
         !accountValid
-          ? "Enter a valid recipient account number."
-          : amountError ?? "Enter an amount greater than ₹0.",
+          ? accountValidationError!
+          : amountError ?? "Enter a whole-number amount greater than ₹0.",
       );
       return;
     }
@@ -132,11 +128,6 @@ export default function Send() {
   }
 
   async function confirmTransfer() {
-    if (!senderAccount) {
-      setTransferError("Your sender account is unavailable. Refresh and try again.");
-      return;
-    }
-
     setSubmitting(true);
     setTransferError(null);
     try {
@@ -146,14 +137,17 @@ export default function Send() {
           receiver_acc_no: recipientDigits,
           amount: numericAmount,
           type: transferType,
-          sender_acc_no: senderAccount,
         }),
       });
       setSuccessMessage(response.message ?? "Amount transferred successfully");
       setConfirmed(true);
       loadBalance();
-    } catch {
-      setTransferError("Transfer couldn't be completed. Please try again.");
+    } catch (caught) {
+      setTransferError(
+        caught instanceof Error
+          ? caught.message
+          : "Transfer couldn't be completed. Please try again.",
+      );
     } finally {
       setSubmitting(false);
     }

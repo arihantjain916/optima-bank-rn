@@ -1,5 +1,6 @@
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { validatePassword } from "@/lib/validation";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
@@ -62,7 +63,7 @@ function PasswordField({
 }
 
 export default function ChangePassword() {
-  const { email, refreshUserInfo, updateUserInfo, userInfo } = useAuth();
+  const { email, refreshUserInfo, signOut, userInfo } = useAuth();
   const insets = useSafeAreaInsets();
   const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -88,8 +89,9 @@ export default function ChangePassword() {
       setError("Complete all password fields to continue.");
       return;
     }
-    if (newPassword.length < 8) {
-      setError("Your new password must be at least 8 characters.");
+    const passwordValidationError = validatePassword(newPassword);
+    if (passwordValidationError) {
+      setError(passwordValidationError);
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -110,28 +112,26 @@ export default function ChangePassword() {
         return;
       }
 
-      const result = await api<UpdateResponse>(`/dashboard/${user.id}`, {
+      const result = await api<UpdateResponse>("/dashboard/me", {
         method: "PATCH",
         body: JSON.stringify({ old: oldPassword, new: newPassword }),
       });
-      await updateUserInfo({
-        password_updated_at:
-          result.password_updated_at || new Date().toISOString(),
-      });
+      await signOut();
 
       router.replace({
         pathname: "/success",
         params: {
           title: "Password Updated",
-          message: result.message || "Your password has been updated securely.",
-          continueTo: "/(tabs)/profile",
-          primaryLabel: "Back to Profile",
+          message:
+            result.message || "Your password has been updated. Sign in with your new password.",
+          continueTo: "/(auth)/login",
+          primaryLabel: "Sign In",
         },
       });
     } catch (caught) {
       setError(
         caught instanceof Error
-          ? caught.message.replace(/^PATCH[^→]*→\s*/, "")
+          ? caught.message
           : "Unable to update your password. Please try again.",
       );
     } finally {

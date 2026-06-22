@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { validateOtp } from "@/lib/validation";
 
 const BLUE = "#2563EB";
 const TEXT = "#F8FAFC";
@@ -45,6 +46,9 @@ export default function Verify() {
       try {
         await api(`/mfa/${encodeURIComponent(email)}`, {
           method: "GET",
+          // The mobile flow is bearer-only. Omitting cookies prevents an old
+          // web/MFA cookie from taking priority over this fresh pre-auth JWT.
+          credentials: "omit",
           headers: { Authorization: `Bearer ${preAuthToken}` },
         });
       } catch (e) {
@@ -54,6 +58,8 @@ export default function Verify() {
   }, [email, preAuthToken]);
 
   async function onVerify(value: string) {
+    const validationError = validateOtp(value);
+    if (validationError) { setError(validationError); return; }
     setVerifying(true);
     setError(null);
     try {
@@ -63,20 +69,23 @@ export default function Verify() {
         `/mfa/${encodeURIComponent(email)}`,
         {
           method: "POST",
+          credentials: "omit",
           headers: { Authorization: `Bearer ${preAuthToken}` },
           body: JSON.stringify({ otp: value }),
         },
       );
 
       await signIn(res.token, email); // commit session + email -> guard -> dashboard
-    } catch {
-      setError("That code didn't match. Try again.");
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : "That code didn't match. Try again.",
+      );
       setCode("");
       setVerifying(false);
     }
   }
 
-  // Auto-submit the moment all 6 digits are entered.
+  // Auto-submit the moment all 4 digits are entered.
   useEffect(() => {
     if (code.length === CODE_LENGTH) onVerify(code);
     // eslint-disable-next-line react-hooks/exhaustive-deps

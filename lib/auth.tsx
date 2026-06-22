@@ -25,7 +25,7 @@ export type UserInfo = StoredUserInfo & {
 type AuthState = {
   /** null = logged out. This is the single source of truth the guard reads. */
   token: string | null;
-  /** the logged-in user's email, used to build per-user endpoints. */
+  /** The logged-in user's email, used for display and MFA verification. */
   email: string | null;
   /** true while we read the session from secure-store on boot. */
   isLoading: boolean;
@@ -42,9 +42,7 @@ type AuthState = {
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
 async function fetchUserInfo(email: string): Promise<UserInfo> {
-  const result = await api<{ data: UserInfo }>(
-    `/dashboard/${encodeURIComponent(email)}`,
-  );
+  const result = await api<{ data: UserInfo }>("/dashboard/me");
   return { ...result.data, email: result.data.email || email };
 }
 
@@ -142,6 +140,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    // Local credentials are removed even when the device is offline or the
+    // server has already invalidated the session.
+    await api("/auth/logout", { method: "POST" }).catch(() => undefined);
     await Promise.all([clearToken(), clearEmail(), clearStoredUserInfo()]);
     setTokenState(null); // flips the guard -> redirects back to auth
     setEmailState(null);

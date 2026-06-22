@@ -1,4 +1,5 @@
 import { api } from "@/lib/api";
+import { validateRegistration } from "@/lib/validation";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useMemo, useState } from "react";
@@ -42,21 +43,16 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const strength = useMemo(() => getStrength(password), [password]);
 
   async function onCreate() {
-    if (password !== confirm) {
-      alert("Passwords do not match");
-      return;
-    }
-
-    if (password.length < 8) {
-      alert("Password must be at least 8 characters.");
-      return;
-    }
+    const validationError = validateRegistration({ firstName, lastName, email, password, confirm });
+    if (validationError) { setError(validationError); return; }
 
     try {
+      setError(null);
       const payload = {
         email,
         password,
@@ -68,8 +64,8 @@ export default function Register() {
       });
 
       router.push({ pathname: "/login" });
-    } catch (e: any) {
-      console.error("e", e);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to create your account.");
     }
   }
 
@@ -110,6 +106,8 @@ export default function Register() {
             placeholder="Johnathan"
             autoCapitalize="words"
           />
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <TextField
             label="LAST NAME"
@@ -261,6 +259,7 @@ const styles = StyleSheet.create({
   },
   meterFill: { height: "100%", borderRadius: 2 },
   meterLabel: { fontSize: 11, fontWeight: "800", letterSpacing: 0.5 },
+  error: { color: "#F87171", fontSize: 12, textAlign: "center", marginTop: 12 },
 
   primaryBtn: {
     height: 54,

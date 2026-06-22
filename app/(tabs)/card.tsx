@@ -2,6 +2,11 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import {
+  authenticateAsync,
+  hasHardwareAsync,
+  isEnrolledAsync,
+} from "expo-local-authentication";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -140,17 +145,38 @@ export default function Card() {
   }, []);
 
   const revealCvv = useCallback(async () => {
-    if (!card?.id) return;
+    if (!card?.id) return false;
 
     setRevealingCvv(true);
     setRevealError(null);
     try {
+      const biometricAvailable =
+        (await hasHardwareAsync()) && (await isEnrolledAsync());
+      if (!biometricAvailable) {
+        setRevealError(
+          "Set up biometrics on this device before revealing your CVV.",
+        );
+        return false;
+      }
+
+      const biometricResult = await authenticateAsync({
+        promptMessage: "Verify to reveal CVV",
+        cancelLabel: "Cancel",
+        disableDeviceFallback: true,
+      });
+      if (!biometricResult.success) {
+        setRevealError("Biometric verification is required to reveal your CVV.");
+        return false;
+      }
+
       const response = await api<{ data: string }>(
         `/card/${encodeURIComponent(card.id)}/reveal/cvv`,
       );
       setCvv(response.data);
+      return true;
     } catch {
       setRevealError("Couldn't reveal your CVV. Flip the card to try again.");
+      return false;
     } finally {
       setRevealingCvv(false);
     }
@@ -183,12 +209,13 @@ export default function Card() {
     }
   }, [card?.id, cardNumber, numberVisible]);
 
-  function toggleFlip() {
+  async function toggleFlip() {
+    if (revealingCvv) return;
     const flippingToBack = !flipped;
 
-    // Start the protected request with the user's tap, before the animation
-    // begins. Both CVV displays consume this single response.
-    if (flippingToBack) void revealCvv();
+    // Do not expose the CVV side until the device has authenticated the user.
+    if (flippingToBack && !(await revealCvv())) return;
+    if (!flippingToBack) setCvv(null);
 
     Animated.spring(flip, {
       toValue: flipped ? 0 : 1,
@@ -339,7 +366,12 @@ export default function Card() {
       </View>
 
       {!loading && card && (
-        <Pressable style={styles.flipBtn} onPress={toggleFlip} hitSlop={8}>
+        <Pressable
+          style={styles.flipBtn}
+          onPress={() => void toggleFlip()}
+          hitSlop={8}
+          disabled={revealingCvv}
+        >
           <Ionicons name="swap-horizontal" size={16} color={MUTED} />
           <Text style={styles.flipText}>TAP TO FLIP CARD</Text>
         </Pressable>

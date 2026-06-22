@@ -26,7 +26,7 @@ export function clearToken(): Promise<void> {
   return SecureStore.deleteItemAsync(TOKEN_KEY);
 }
 
-// We also remember the user's email — endpoints like /api/dashboard/<email>
+// We also remember the user's email for display and MFA verification.
 // need it, and it's not worth decoding the JWT on every screen.
 export function getEmail(): Promise<string | null> {
   return SecureStore.getItemAsync(EMAIL_KEY);
